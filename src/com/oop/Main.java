@@ -1,177 +1,244 @@
 import java.util.*;
 
-// Interface untuk objek yang bisa ditembak
-interface Shootable {
-    boolean isHit(int x, int y);
-    void hit();
+interface Tembak {
+    boolean kena(int x, int y);
+    void terkena();
 }
-// Objek kapal
-class Ship implements Shootable {
+
+class Kapal implements Tembak {
     private int x;
     private int y;
-    private boolean isHit;
+    private boolean terkena;
 
-    public Ship(int x, int y) {
+    public Kapal(int x, int y) {
         this.x = x;
         this.y = y;
-        this.isHit = false;
+        this.terkena = false;
     }
 
-    public boolean isHit(int x, int y) {
+    public boolean kena(int x, int y) {
         return this.x == x && this.y == y;
     }
 
-    public void hit() {
-        isHit = true;
+    public void terkena() {
+        terkena = true;
     }
 
-    public boolean isSunk() {
-        return isHit;
+    public boolean tenggelam() {
+        return terkena;
     }
 }
 
-// Objek peta
-class Map {
-    private Shootable[][] grid;
-    private Set<String> history;
+class Peta {
+    private Tembak[][] grid;
+    private Set<String> riwayat;
+    private Set<String> kapalDitembak;
 
-    public Map(int size) {
-        this.grid = new Shootable[size][size];
-        this.history = new HashSet<>();
+    public Peta(int ukuran) {
+        this.grid = new Tembak[ukuran][ukuran];
+        this.riwayat = new HashSet<>();
+        this.kapalDitembak = new HashSet<>();
     }
 
-    public void placeShip(Shootable ship, int x, int y) {
-        grid[x][y] = ship;
+    public void tempatkanKapal(Tembak kapal, int x, int y) {
+        grid[x][y] = kapal;
     }
 
-    public boolean isOccupied(int x, int y) {
+    public boolean adaKapal(int x, int y) {
         return grid[x][y] != null;
     }
 
-    public boolean isHit(int x, int y) {
-        Shootable target = grid[x][y];
+    public boolean kena(int x, int y) {
+        Tembak target = grid[x][y];
         if (target != null) {
-            target.hit();
+            target.terkena();
+            kapalDitembak.add(x + "-" + y);
             return true;
         }
         return false;
     }
 
-    public boolean isAlreadyHit(int x, int y) {
-        String coordinate = x + "-" + y;
-        return history.contains(coordinate);
+    public boolean sudahTertembak(int x, int y) {
+        String koordinat = x + "-" + y;
+        return riwayat.contains(koordinat);
     }
 
-    public void addHitToHistory(int x, int y) {
-        String coordinate = x + "-" + y;
-        history.add(coordinate);
+    public boolean tembakKapalDitembak(int x, int y) {
+        String koordinat = x + "-" + y;
+        return kapalDitembak.contains(koordinat);
     }
 
-    public boolean isGameEnd() {
-        for (Shootable[] row : grid) {
-            for (Shootable cell : row) {
-                if (cell instanceof Ship && !((Ship) cell).isSunk()) {
+    public void tambahkanTembakanKeRiwayat(int x, int y) {
+        String koordinat = x + "-" + y;
+        riwayat.add(koordinat);
+    }
+
+    public boolean akhirPermainan() {
+        for (Tembak[] baris : grid) {
+            for (Tembak sel : baris) {
+                if (sel instanceof Kapal && !((Kapal) sel).tenggelam()) {
                     return false;
                 }
             }
         }
         return true;
     }
-}
 
-// Objek pemain
-class Player {
-    private String name;
+    public void tampilkanPeta() {
+        int ukuran = grid.length;
 
-    public Player(String name) {
-        this.name = name;
-    }
+        System.out.print("  ");
+        for (int i = 0; i < ukuran; i++) {
+            System.out.print(i + " ");
+        }
+        System.out.println();
 
-    public String getName() {
-        return name;
-    }
-
-    public void takeTurn(Map opponentMap, int x, int y) {
-        boolean isHit = opponentMap.isHit(x, y);
-        if (isHit) {
-            opponentMap.addHitToHistory(x, y);
-            System.out.println("Target bombed!");
-        } else {
-            System.out.println("Missed!");
+        for (int i = 0; i < ukuran; i++) {
+            System.out.print(i + " ");
+            for (int j = 0; j < ukuran; j++) {
+                if (sudahTertembak(i, j)) {
+                    if (adaKapal(i, j)) {
+                        System.out.print("X ");
+                    } else {
+                        System.out.print("O ");
+                    }
+                } else {
+                    System.out.print("- ");
+                }
+            }
+            System.out.println();
         }
     }
 }
 
-// Main class
- class BattleshipGame {
+class Pemain {
+    private String nama;
+    private Peta peta;
+
+    public Pemain(String nama, Peta peta) {
+        this.nama = nama;
+        this.peta = peta;
+    }
+
+    public String getNama() {
+        return nama;
+    }
+
+    public Peta getPeta() {
+        return peta;
+    }
+
+    public void giliran(Pemain lawan, int x, int y) {
+        Peta petaLawan = lawan.getPeta();
+        Peta petaSendiri = getPeta();
+
+        if (petaSendiri.sudahTertembak(x, y)) {
+            System.out.println("Sasaran sudah ditembak sebelumnya!");
+            return;
+        }
+
+        if (petaSendiri.tembakKapalDitembak(x, y)) {
+            System.out.println("Kamu tidak bisa menembak kapal yang sudah ditembak!");
+            return;
+        }
+
+        boolean kena = petaLawan.kena(x, y);
+        if (kena) {
+            petaSendiri.tambahkanTembakanKeRiwayat(x, y);
+            System.out.println("Target terkena!");
+        } else {
+            if (petaSendiri.adaKapal(x, y)) {
+                System.out.println("Gawat, kena kapal sendiri!");
+            } else {
+                System.out.println("Meleset, Sasaran Zonk");
+            }
+            petaSendiri.tambahkanTembakanKeRiwayat(x, y);
+        }
+    }
+}
+
+public class Main {
+    private static Pemain pemain1;
+    private static Pemain pemain2;
+    private static Peta peta;
+
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
 
-        // Inisialisasi pemain
-        System.out.println("========== About ===========");
-        System.out.println("     Battleship Game 6A  ");
+        System.out.println("========== Tentang ==========");
+        System.out.println("   Permainan Battleship 6B   ");
         System.out.println("============================");
-        System.out.println("bergiliran menebak koordinat");
-        System.out.println("untuk mengebom kapal lawan");
+        System.out.println("Bergiliran menebak koordinat");
+        System.out.println("untuk menembak kapal lawan");
         System.out.println("============================");
-        System.out.println();
+       
 
-     System.out.print("Press Enter to start the game...");
+        System.out.print("Tekan Enter untuk memulai permainan...");
         scanner.nextLine();
+         System.out.println();
 
-        System.out.print("Enter player 1 name: ");
-        String player1Name = scanner.nextLine();
-        System.out.print("Enter player 2 name: ");
-        String player2Name = scanner.nextLine();
+        System.out.print("Masukkan nama pemain 1: ");
+        String namaPemain1 = scanner.nextLine();
+        System.out.print("Masukkan nama pemain 2: ");
+        String namaPemain2 = scanner.nextLine();
+    
 
-        Map player1Map = createMap();
-        Map player2Map = createMap();
-        Player player1 = new Player(player1Name);
-        Player player2 = new Player(player2Name);
+        peta = buatPeta();
+        pemain1 = new Pemain(namaPemain1, peta);
+        pemain2 = new Pemain(namaPemain2, peta);
 
-        int round = 1;
-        boolean gameEnd = false;
-        Player currentPlayer = player1;
+        tempatkanKapal(pemain1);
+        tempatkanKapal(pemain2);
 
-        while (!gameEnd) {
-            System.out.println("Round " + round);
-            System.out.println("Current player: " + currentPlayer.getName());
-            System.out.print("Enter target coordinates (x y): ");
+        int putaran = 1;
+        boolean akhirPermainan = false;
+        Pemain pemainSaatIni = pemain1;
+         System.out.println();
+
+        while (!akhirPermainan) {
+            System.out.println();
+            System.out.println("Putaran " + putaran);
+            System.out.println("Pemain saat ini: " + pemainSaatIni.getNama());
+            System.out.print("Masukkan koordinat sasaran (x y): \n");
+
             int x = scanner.nextInt();
             int y = scanner.nextInt();
 
-            if (currentPlayer == player1) {
-                player2.takeTurn(player1Map, x, y);
-                gameEnd = player1Map.isGameEnd();
-                currentPlayer = player2;
-            } else {
-                player1.takeTurn(player2Map, x, y);
-                gameEnd = player2Map.isGameEnd();
-                currentPlayer = player1;
-            }
+            pemainSaatIni.giliran(pemainSaatIni == pemain1 ? pemain2 : pemain1, x, y);
+            peta.tampilkanPeta();
 
-            round++;
+            akhirPermainan = peta.akhirPermainan();
+            if (akhirPermainan) {
+                System.out.println("Permainan selesai!");
+                System.out.println("Pemenang: " + pemainSaatIni.getNama());
+            } else {
+                pemainSaatIni = pemainSaatIni == pemain1 ? pemain2 : pemain1;
+                putaran++;
+            }
         }
 
-        System.out.println("Game over!");
-        System.out.println("Winner: " + currentPlayer.getName());
+        scanner.close();
     }
 
-    public static Map createMap() {
-        Map map = new Map(7);
+    private static Peta buatPeta() {
+        return new Peta(7);
+    }
 
-        // Menambahkan kapal ke peta secara acak
+    private static void tempatkanKapal(Pemain pemain) {
+        Peta peta = pemain.getPeta();
         Random random = new Random();
-        int shipCount = 0;
-        while (shipCount < 5) {
+
+        for (int i = 0; i < 3; i++) {
             int x = random.nextInt(7);
             int y = random.nextInt(7);
-            if (!map.isOccupied(x, y)) {
-                map.placeShip(new Ship(x, y), x, y);
-                shipCount++;
-            }
-        }
 
-        return map;
+            while (peta.adaKapal(x, y)) {
+                x = random.nextInt(7);
+                y = random.nextInt(7);
+            }
+
+            Tembak kapal = new Kapal(x, y);
+            peta.tempatkanKapal(kapal, x, y);
+        }
     }
 }
